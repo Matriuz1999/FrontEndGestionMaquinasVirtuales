@@ -1,0 +1,366 @@
+﻿@page "/maquinas"
+@using System.ComponentModel.DataAnnotations
+@using Blazored.LocalStorage
+@using FrontEndGestionMaquinasVirtuales.Dtos
+@using FrontEndGestionMaquinasVirtuales.Servicios
+@using Microsoft.AspNetCore.Components.Forms
+@using Newtonsoft.Json
+@inject ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
+@inject ApiGestionMaquinas Api
+@inject IConfiguration Configuration
+
+
+@if (!string.IsNullOrEmpty(_mensaje))
+{
+        <div class="alert alert-info">@_mensaje</div>
+}
+
+<div class="container my-5">
+    <div class="text-end text-black">
+        <h3 class="m-0">Usuario: @RolUsuario</h3>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="text-center bg-dark text-white p-4 rounded shadow mb-4">
+        <h3 class="m-0">🖥️ Máquinas Virtuales</h3>
+    </div>
+
+    @if (RolUsuario == "Administrador")
+    {
+            <div class="text-end mb-3">
+                <button class="btn btn-success" @onclick="() => MostrarModal(true)">
+                    ➕ Crear Máquina
+                </button>
+            </div>
+    }
+
+    @if (cargando)
+    {
+            <div class="text-center my-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2">Cargando máquinas virtuales...</p>
+            </div>
+    }
+    else if (listaVM.Count == 0)
+    {
+            <div class="alert alert-info text-center">
+                No hay máquinas virtuales disponibles.
+            </div>
+    }
+    else
+    {
+            <div class="table-responsive">
+                <table class="table table-hover table-striped shadow-sm rounded bg-white">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Cores</th>
+                            <th>RAM (GB)</th>
+                            <th>Disco (GB)</th>
+                            <th>OS</th>
+                            <th>Estado</th>
+                            <th>Creación</th>
+                            <th>Actualización</th>
+                        @if (RolUsuario == "Administrador")
+                        {
+                                    <th>Acciones</th>
+                        }
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var vm in listaVM)
+                    {
+                                <tr>
+                                    <td>@vm.Nombre</td>
+                                    <td>@vm.Cores</td>
+                                    <td>@vm.RAM</td>
+                                    <td>@vm.Disco</td>
+                                    <td>@vm.OS</td>
+                                    <td>
+                                        <span class="badge bg-@(vm.Estado == "Activo" ? "success" : "secondary")">
+                                    @vm.Estado
+                                        </span>
+                                    </td>
+                                    <td>@vm.FechaCreacion.ToString("yyyy-MM-dd")</td>
+                                    <td>@(vm.FechaActualizacion.HasValue ? vm.FechaActualizacion.Value.ToString("yyyy-MM-dd") : "-")</td>
+                            @if (RolUsuario == "Administrador")
+                            {
+                                            <td>
+                                                <button class="btn btn-sm btn-primary me-1" @onclick="() => MostrarModal(false, vm)">✏️</button>
+                                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmarEliminar(vm.Id)">🗑️</button>
+                                            </td>
+                            }
+                                </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+    }
+</div>
+
+@if (mostrandoModal)
+{
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content shadow">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">@((esNuevo ? "Crear" : "Editar") + " Máquina Virtual")</h5>
+                        <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                    </div>
+                    <EditForm Model="@(esNuevo ? (object)nuevaVM : editarVM)" OnValidSubmit="Guardar">
+                        <DataAnnotationsValidator />
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Nombre</label>
+                                @if (esNuevo)
+                                {
+                                            <InputText class="form-control" @bind-Value="nuevaVM.Nombre" />
+                                }
+                                else
+                                {
+                                            <InputText class="form-control" @bind-Value="editarVM.Nombre" />
+                                }
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Cores</label>
+                                @if (esNuevo)
+                                {
+                                            <InputNumber class="form-control" @bind-Value="nuevaVM.Cores" />
+                                }
+                                else
+                                {
+                                            <InputNumber class="form-control" @bind-Value="editarVM.Cores" />
+                                }
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">RAM (GB)</label>
+                                @if (esNuevo)
+                                {
+                                            <InputNumber class="form-control" @bind-Value="nuevaVM.RAM" />
+                                }
+                                else
+                                {
+                                            <InputNumber class="form-control" @bind-Value="editarVM.RAM" />
+                                }
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Disco (GB)</label>
+                                @if (esNuevo)
+                                {
+                                            <InputNumber class="form-control" @bind-Value="nuevaVM.Disco" />
+                                }
+                                else
+                                {
+                                            <InputNumber class="form-control" @bind-Value="editarVM.Disco" />
+                                }
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Sistema Operativo</label>
+                                @if (esNuevo)
+                                {
+                                            <InputText class="form-control" @bind-Value="nuevaVM.OS" />
+                                }
+                                else
+                                {
+                                            <InputText class="form-control" @bind-Value="editarVM.OS" />
+                                }
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Estado</label>
+                                @if (esNuevo)
+                                {
+                                            <InputSelect class="form-select" @bind-Value="nuevaVM.Estado">
+                                                <option value="Activo">Activo</option>
+                                                <option value="Inactivo">Inactivo</option>
+                                            </InputSelect>
+                                }
+                                else
+                                {
+                                            <InputSelect class="form-select" @bind-Value="editarVM.Estado">
+                                                <option value="Activo">Activo</option>
+                                                <option value="Inactivo">Inactivo</option>
+                                            </InputSelect>
+                                }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">
+                            @if (guardando)
+                            {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span class="ms-1">Guardando...</span>
+                            }
+                            else
+                            {
+                                        <span>Guardar</span>
+                            }
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+}
+
+@code {
+    private List<MaquinaVirtualDto> listaVM = new();
+    private MaquinaVirtualCreateDto nuevaVM = new();
+    private MaquinaVirtualUpdateDto editarVM = new();
+    private bool mostrandoModal = false;
+    private bool esNuevo = true;
+    private int maquinaIdEditando;
+    private bool cargando = true;
+    private bool guardando = false;
+    private string RolUsuario = string.Empty;
+    private string? _mensaje;
+    private System.Timers.Timer _timer;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        RolUsuario = await LocalStorage.GetItemAsync<string>("rolUsuario");
+        await CargarMaquinas();
+
+        if (RolUsuario == "Cliente")
+        {
+            var urlSignal = Configuration["ApiSettings:UrlSignal"];
+            var dotnetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("signalRHelper.connectToSignalR", urlSignal, dotnetRef);
+        }
+
+    }
+
+    private async Task CargarMaquinas()
+    {
+        try
+        {
+            cargando = true;
+            listaVM = await Api.ObtenerTodasAsync();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al cargar máquinas: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void MostrarModal(bool nuevo, MaquinaVirtualDto? vm = null)
+    {
+        esNuevo = nuevo;
+
+        if (nuevo)
+        {
+            nuevaVM = new MaquinaVirtualCreateDto
+                {
+                    Nombre = "",
+                    Cores = 1,
+                    RAM = 1,
+                    Disco = 10,
+                    OS = "Windows",
+                    Estado = "Activo"
+                };
+        }
+        else if (vm != null)
+        {
+            editarVM = new MaquinaVirtualUpdateDto
+                {
+                    Nombre = vm.Nombre,
+                    Cores = vm.Cores,
+                    RAM = vm.RAM,
+                    Disco = vm.Disco,
+                    OS = vm.OS,
+                    Estado = vm.Estado
+                };
+            maquinaIdEditando = vm.Id;
+        }
+
+        mostrandoModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrandoModal = false;
+    }
+
+    private async Task Guardar()
+    {
+        try
+        {
+            guardando = true;
+
+            if (esNuevo)
+            {
+                await Api.CrearAsync(nuevaVM);
+            }
+            else
+            {
+                await Api.ActualizarAsync(maquinaIdEditando, editarVM);
+            }
+
+            CerrarModal();
+            await CargarMaquinas();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al guardar: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task ConfirmarEliminar(int id)
+    {
+        var confirmado = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de eliminar la máquina con ID {id}?");
+        if (confirmado)
+        {
+            try
+            {
+                await Api.EliminarAsync(id);
+                await CargarMaquinas();
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+
+    // Método que se invoca desde JavaScript cuando llega una notificación
+    [JSInvokable]
+    public void RecibirNotificacion(string mensajeJson)
+    {
+        _mensaje = mensajeJson;
+
+        // Actualizar la vista
+        StateHasChanged();
+
+        // Si ya hay un temporizador activo, lo detenemos
+        _timer?.Stop();
+        _timer?.Dispose();
+
+        // Crear un nuevo temporizador de 5 segundos (5000 ms)
+        _timer = new System.Timers.Timer(5000);
+        _timer.Elapsed += (sender, e) =>
+        {
+            _mensaje = string.Empty;
+            InvokeAsync(StateHasChanged); // Invoca el render desde el hilo correcto
+            _timer.Stop();
+            _timer.Dispose();
+        };
+        _timer.Start();
+    }
+
+}

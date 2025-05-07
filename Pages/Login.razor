@@ -1,0 +1,69 @@
+﻿@page "/"
+@inject ApiGestionMaquinas Api
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+
+@using Blazored.LocalStorage
+@using FrontEndGestionMaquinasVirtuales.Servicios
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@using FrontEndGestionMaquinasVirtuales.Dtos
+
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div class="card shadow-lg p-4" style="width: 100%; max-width: 400px;">
+        <h3 class="text-center mb-4">Iniciar Sesión</h3>
+
+        <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Correo electrónico</label>
+                <InputText id="email" class="form-control" @bind-Value="loginModel.Email" placeholder="usuario@correo.com" />
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" placeholder="••••••••" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" >Ingresar</button>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">@errorMessage</div>
+        }
+    </div>
+</div>
+
+@code {
+    private LoginDto loginModel = new LoginDto();
+    private string errorMessage;
+
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            //Ir al metodo que consumi el auth
+            var result = await Api.LoginAsync(loginModel);
+
+            if (!string.IsNullOrEmpty(result?.Token))
+            {
+                //Guardar el token en el local storage
+                await LocalStorage.SetItemAsync("rolUsuario", result.Rol);
+
+                Navigation.NavigateTo("/maquinas");
+            }
+            else
+            {
+                errorMessage = "No se pudo iniciar sesión. Verifica tus credenciales.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}
