@@ -20,7 +20,7 @@ Aplicación web desarrollada con Blazor Server para la gestión de máquinas vir
 
 1. Clone el repositorio:
    ```
-   git clone https://github.com/tuusuario/FrontEndGestionMaquinasVirtuales.git
+ https://github.com/Matriuz1999/FrontEndGestionMaquinasVirtuales.git
    ```
 
 2. Navegue al directorio del proyecto:
